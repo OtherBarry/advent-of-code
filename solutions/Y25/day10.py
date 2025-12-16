@@ -101,23 +101,30 @@ def bfs_state(target_state: State, buttons: Sequence[Button]) -> Set[Tuple[int, 
     return valid_paths
 
 
+@cache
+def is_reachable_joltage(target_joltage: tuple[int, ...], current_joltage: tuple[int, ...]) -> bool:
+    return all(tj >= cj for tj, cj in zip(target_joltage, current_joltage))
+
+
+
 def bfs_joltage(target_joltage: tuple[int, ...], buttons: Sequence[Button]) -> Sequence[Button] | None:
     current_joltage = tuple([0] * len(target_joltage))
     current_presses = []
     to_visit: Deque[tuple[int, ...], list[Button]] = deque()
     visited = {current_joltage}
 
-    while True:
-        if current_joltage == target_joltage or (to_visit and all(not all(x <= y for x, y in zip(next[0], target_joltage)) for next in to_visit)):
-            break
-        # print("\t\t\tIter")
-        for button in buttons:
-            next_joltage = update_joltage(current_joltage, button)
-            if next_joltage not in visited:
-                visited.add(next_joltage)
-                to_visit.append((next_joltage, current_presses + [button]))
-        current_joltage, current_presses = to_visit.popleft()
-    if current_joltage != target_joltage:
+    try:
+        while True:
+            if current_joltage == target_joltage:
+                break
+            # print("\t\t\tIter")
+            for button in buttons:
+                next_joltage = update_joltage(current_joltage, button)
+                if next_joltage not in visited and is_reachable_joltage(target_joltage, next_joltage):
+                    visited.add(next_joltage)
+                    to_visit.append((next_joltage, current_presses + [button]))
+            current_joltage, current_presses = to_visit.popleft()
+    except IndexError:
         return None
     return current_presses
 
