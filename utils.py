@@ -15,7 +15,7 @@ def get_default_input_path(year: int, day: int) -> Path:
     return Path(f"inputs/Y{str(year)[-2:]}/{day:02d}.txt")
 
 
-def get_solution_result(solution: BaseSolution, part: Literal[1, 2]) -> int:
+def get_solution_result(solution: BaseSolution, part: Literal[1, 2]) -> str | int:
     solution.setup()
 
     if part == 1:
@@ -25,7 +25,9 @@ def get_solution_result(solution: BaseSolution, part: Literal[1, 2]) -> int:
     raise ValueError("Part must be 1 or 2")
 
 
-def get_solution_with_default_path(year: int, day: int, part: Literal[1, 2]) -> int:
+def get_solution_with_default_path(
+    year: int, day: int, part: Literal[1, 2]
+) -> str | int:
     input_path = Path(f"inputs/Y{str(year)[-2:]}/{day:02d}.txt")
     solution_class = get_solution_class(year, day)
     solution = solution_class(input_path)
@@ -34,7 +36,7 @@ def get_solution_with_default_path(year: int, day: int, part: Literal[1, 2]) -> 
 
 def get_solution_from_string(
     year: int, day: int, part: Literal[1, 2], input_string: str
-) -> int:
+) -> str | int:
     solution_class = get_solution_class(year, day)
     with tempfile.NamedTemporaryFile("w+") as temp_file:
         temp_file.write(input_string)

@@ -20,7 +20,7 @@ class Solution(BaseSolution):
             value += i * self.x_register[i - 1]
         return value
 
-    def part_2(self) -> str:  # type: ignore[override]
+    def part_2(self) -> str:
         result = ""
         for index, register in enumerate(self.x_register):
             crt_index = index % 40

@@ -113,5 +113,10 @@ class WhitespaceGrid(BaseGrid[str]):
         super().__init__([line.split() for line in raw_input.splitlines()])
 
 
+class BooleanGrid(BaseGrid[bool]):
+    def __init__(self, default: bool, width: int, height: int) -> None:
+        super().__init__([[default] * (width + 1) for _ in range(height + 1)])
+
+
 def manhattan_distance(a: Coordinate, b: Coordinate) -> int:
     return abs(a[0] - b[0]) + abs(a[1] - b[1])

@@ -6,8 +6,10 @@ class Range:
         self.start = start
         self.end = end
 
-    def __contains__(self, item: int) -> bool:
-        return self.start <= item <= self.end
+    def __contains__(self, item: int | Self) -> bool:
+        if isinstance(item, int):
+            return self.start <= item <= self.end
+        return self.start <= item.start and item.end <= self.end
 
     def overlaps(self, other: Self) -> bool:
         return self.start <= other.end and other.start <= self.end

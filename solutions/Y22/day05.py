@@ -1,72 +1,64 @@
+from collections import deque
+from collections.abc import Generator, Iterable
 from copy import deepcopy
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from solutions.base import BaseSolution
+from solutions.utils.grid import CharacterGrid
 
 
-def chunk_string(string: str, chunk_size: int) -> list[str]:
-    return [string[i : i + chunk_size] for i in range(0, len(string), chunk_size)]
-
-
-@dataclass
 class Stack:
-    contents: list[str] = field(default_factory=list)
+    def __init__(self, items: Iterable[str]) -> None:
+        self._deque = deque(items)
 
-    def push(self, value: str) -> None:
-        self.contents.append(value)
+    def pop(self, n: int = 1) -> Generator[str]:
+        for _ in range(n):
+            yield self._deque.popleft()
 
-    def pop(self) -> str:
-        return self.contents.pop()
+    def push(self, items: Iterable[str]) -> None:
+        self._deque.extendleft(items)
 
     def peek(self) -> str:
-        return self.contents[-1]
+        return self._deque[0]
 
 
 @dataclass
-class Supplies:
-    stacks: list[Stack]
+class Move:
+    source: int
+    target: int
+    count: int
 
-    def move_9000(self, source: int, target: int, count: int) -> None:
-        for _ in range(count):
-            self.stacks[target].push(self.stacks[source].pop())
+    def perform(self, stacks: list[Stack]) -> None:
+        stacks[self.target].push(stacks[self.source].pop(self.count))
 
-    def move_9001(self, source: int, target: int, count: int) -> None:
-        temp_stack = Stack()
-        for _ in range(count):
-            temp_stack.push(self.stacks[source].pop())
-        for _ in range(count):
-            self.stacks[target].push(temp_stack.pop())
+    def perform_bulk(self, stacks: list[Stack]) -> None:
+        stacks[self.target].push(reversed(list(stacks[self.source].pop(self.count))))
 
 
 class Solution(BaseSolution):
     def setup(self) -> None:
-        lines = self.raw_input.splitlines()
-        num_stacks = (len(lines[0]) + 1) // 4
-        stacks = [Stack() for _ in range(num_stacks)]
-        moves_start = -1
-        for i, line in enumerate(lines):
-            if "[" not in line:
-                stacks_end = i
-                moves_start = i + 2
-                break
-        for line in lines[:stacks_end][::-1]:
-            for j, chunk in enumerate(chunk_string(line, 4)):
-                if chunk != "    ":
-                    stacks[j].push(chunk[1])
-        self.supplies = Supplies(stacks)
+        layout_lines, move_lines = self.raw_input.split("\n\n")
+
+        # Stacks
+        columns = list(CharacterGrid(layout_lines).iter_columns())
+        self.stacks = [
+            Stack(("".join(columns[i]))[:-1].strip()) for i in range(1, len(columns), 4)
+        ]
+
+        # Moves
         self.moves = []
-        for line in lines[moves_start:]:
+        for line in move_lines.splitlines():
             _, count, _, source, _, target = line.split()
-            self.moves.append((int(source) - 1, int(target) - 1, int(count)))
+            self.moves.append(Move(int(source) - 1, int(target) - 1, int(count)))
 
-    def part_1(self) -> int:
-        supplies = deepcopy(self.supplies)
+    def part_1(self) -> str:
+        stacks = deepcopy(self.stacks)
         for move in self.moves:
-            supplies.move_9000(*move)
-        return int("".join(stack.peek() for stack in supplies.stacks))
+            move.perform(stacks)
+        return "".join(stack.peek() for stack in stacks)
 
-    def part_2(self) -> int:
-        supplies = deepcopy(self.supplies)
+    def part_2(self) -> str:
+        stacks = deepcopy(self.stacks)
         for move in self.moves:
-            supplies.move_9001(*move)
-        return int("".join(stack.peek() for stack in supplies.stacks))
+            move.perform_bulk(stacks)
+        return "".join(stack.peek() for stack in stacks)

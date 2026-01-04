@@ -1,89 +1,101 @@
-from collections.abc import Callable
+from collections.abc import Callable, Generator
 from dataclasses import dataclass, field
-from typing import Optional, Self
+from functools import cached_property
 
 from solutions.base import BaseSolution
 
 
 @dataclass
-class Node:
+class File:
     name: str
-    is_directory: bool = False
-    _size: int = 0
-    parent: Self | None = None
-    children: list["Node"] = field(default_factory=list)
+    size: int
+
+
+@dataclass
+class Directory:
+    name: str
+    parent: "Directory | None" = None
+    files: list[File] = field(default_factory=list)
+    subdirectories: list["Directory"] = field(default_factory=list)
+
+    @cached_property
+    def size(self) -> int:
+        return sum(x.size for x in self.files + self.subdirectories)
+
+    def parse_ls_output(self, line: str) -> None:
+        if line.startswith("dir"):
+            path = line[4:].strip()
+            self.subdirectories.append(Directory(name=path, parent=self))
+        else:
+            size, name = line.split()
+            self.files.append(File(name=name, size=int(size)))
+
+
+class Shell:
+    def __init__(self) -> None:
+        self._root = Directory(name="/")
+        self._cwd = self._root
 
     @property
-    def size(self) -> int:
-        return self._size + sum(child.size for child in self.children)
+    def root(self) -> Directory:
+        return self._root
 
-    def add_child(self, child: "Node") -> None:
-        self.children.append(child)
-        child.parent = self
+    def cd(self, path: str) -> None:
+        if path == "/":
+            self._cwd = self._root
+        elif path == "..":
+            if self._cwd.parent is None:
+                raise ValueError("Already at root directory")
+            self._cwd = self._cwd.parent
+        else:
+            for subdir in self._cwd.subdirectories:
+                if subdir.name == path:
+                    self._cwd = subdir
+                    break
+            else:
+                raise ValueError(f"Directory {path} not found")
 
-    def find_child_by_name(self, name: str) -> Optional["Node"]:
-        for child in self.children:
-            if child.name == name:
-                return child
-        return None
+    def parse_line(self, line: str) -> None:
+        if line.startswith("$ cd"):
+            path = line[5:].strip()
+            self.cd(path)
+        elif not line.startswith("$ ls"):
+            self._cwd.parse_ls_output(line)
 
 
-def find_all_children_matching(
-    node: Node, predicate: Callable[[Node], bool]
-) -> list[Node]:
-    matches = []
-    for child in node.children:
-        if predicate(child):
-            matches.append(child)
-        matches.extend(find_all_children_matching(child, predicate))
-    return matches
+def filter_child_directories(
+    directory: Directory, predicate: Callable[[Directory], bool]
+) -> Generator[Directory]:
+    if predicate(directory):
+        yield directory
+    for subdirectory in directory.subdirectories:
+        yield from filter_child_directories(subdirectory, predicate)
 
 
 class Solution(BaseSolution):
     def setup(self) -> None:
-        root = Node(name="/", is_directory=True)
-        current_dir: Node = root
-        for line in self.raw_input.splitlines()[1:]:
-            if line.startswith("$"):
-                line = line[2:]  # noqa: PLW2901
-                if line == "ls":
-                    continue
-                if line == "cd ..":
-                    if current_dir.parent is None:
-                        raise ValueError("Already at root directory")
-                    current_dir = current_dir.parent
-
-                else:
-                    child = current_dir.find_child_by_name(line[3:])
-                    if child is None:
-                        raise ValueError(f"Directory {line[3:]} not found")
-                    current_dir = child
-            elif line.startswith("dir"):
-                line = line[4:]  # noqa: PLW2901
-                child = Node(name=line, is_directory=True)
-                current_dir.add_child(child)
-            else:
-                size, name = line.split()
-                child = Node(name=name, is_directory=False, _size=int(size))
-                current_dir.add_child(child)
-        self.root = root
+        self._shell = Shell()
+        for line in self.raw_input.splitlines():
+            self._shell.parse_line(line)
 
     def part_1(self) -> int:
-        def predicate(node: Node) -> bool:
-            return node.is_directory and node.size <= 100000
+        def predicate(directory: Directory) -> bool:
+            return directory.size <= 100000
 
         return sum(
-            node.size for node in find_all_children_matching(self.root, predicate)
+            directory.size
+            for directory in filter_child_directories(self._shell.root, predicate)
         )
 
     def part_2(self) -> int:
         required_size = 70000000 - 30000000
-        current_size = self.root.size
-        smallest_dir_to_delete = current_size - required_size
+        current_size = self._shell.root.size
+        minimum_size = current_size - required_size
 
-        def predicate(node: Node) -> bool:
-            return node.is_directory and node.size >= smallest_dir_to_delete
+        def predicate(directory: Directory) -> bool:
+            return directory.size >= minimum_size
 
-        dirs_to_delete = find_all_children_matching(self.root, predicate)
-        smallest = min(dirs_to_delete, key=lambda node: node.size)
-        return smallest.size
+        return min(
+            filter_child_directories(self._shell.root, predicate),
+            key=lambda directory: directory.size,
+        ).size

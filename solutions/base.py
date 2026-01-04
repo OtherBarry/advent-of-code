@@ -11,9 +11,9 @@ class BaseSolution(ABC):
         pass
 
     @abstractmethod
-    def part_1(self) -> int:
+    def part_1(self) -> str | int:
         pass
 
     @abstractmethod
-    def part_2(self) -> int:
+    def part_2(self) -> str | int:
         pass
